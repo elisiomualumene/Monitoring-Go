@@ -22,23 +22,31 @@ var httpRequestTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help: "Count of all http request for goapp",
 }, []string{})
 
+var httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "goapp_http_request_duration",
+	Help: "Duration in seconds of all http requests",
+}, []string{"handler"})
+
 func main() {
 	r := prometheus.NewRegistry()
 
 	r.MustRegister(onlineUsers)
 	r.MustRegister(httpRequestTotal)
+	r.MustRegister(httpDuration)
 
 	go func() {
 		onlineUsers.Set(float64(rand.Intn(2000)))
 	}()
 
-	home := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+	home := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Hello Endpoint"))
 	})
 
-	http.Handle("/", promhttp.InstrumentHandlerCounter(httpRequestTotal, home))
+	d := promhttp.InstrumentHandlerDuration(httpDuration.MustCurryWith(prometheus.Labels{"handler": "home"}), promhttp.InstrumentHandlerCounter(httpRequestTotal, home))
+
+	http.Handle("/", d)
 
 	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
-	log.Fatal(http.ListenAndServe(":8181", nil))
+	log.Fatal(http.ListenAndServe(":4000", nil))
 }

@@ -1,6 +1,15 @@
 version: '3.8'
 
 services:
+  goapp:
+    build: .
+    container_name: goapp
+    depends_on:
+      - prometheus
+    volumes:
+      - ../core:/go/src
+    ports:
+      - 4000:4000
   prometheus:
     image: prom/prometheus
     container_name: prometheus
